@@ -4,6 +4,9 @@ import type { ParsedDebtEntry, ParsedDebtReport } from "@/lib/types";
 import { parseBrazilianCurrencyToCents, parseBrazilianDate } from "@/lib/utils";
 
 let isPdfWorkerConfigured = false;
+const importModule = new Function("specifier", "return import(specifier);") as (
+  specifier: string,
+) => Promise<{ getData: () => string }>;
 
 async function configurePdfParseWorker(PDFParse: {
   setWorker: (workerSrc: string) => void;
@@ -21,7 +24,7 @@ async function configurePdfParseWorker(PDFParse: {
     "esm",
     "index.js",
   );
-  const { getData } = await import(pathToFileURL(workerHelperPath).href);
+  const { getData } = await importModule(pathToFileURL(workerHelperPath).href);
 
   PDFParse.setWorker(getData());
   isPdfWorkerConfigured = true;
