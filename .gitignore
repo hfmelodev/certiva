@@ -1,0 +1,8 @@
+.next
+node_modules
+prisma/dev.db
+prisma/dev.db-journal
+storage/uploads/*
+storage/certidoes/*
+!storage/uploads/.gitkeep
+!storage/certidoes/.gitkeep
