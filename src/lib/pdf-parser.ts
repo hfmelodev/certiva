@@ -1,7 +1,29 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ParsedDebtEntry, ParsedDebtReport } from "@/lib/types";
 import { parseBrazilianCurrencyToCents, parseBrazilianDate } from "@/lib/utils";
+
+const require = createRequire(import.meta.url);
+let isPdfWorkerConfigured = false;
+
+async function configurePdfParseWorker(PDFParse: {
+  setWorker: (workerSrc: string) => void;
+}) {
+  if (isPdfWorkerConfigured) {
+    return;
+  }
+
+  const pdfParseEntry = require.resolve("pdf-parse");
+  const workerHelperPath = path.resolve(
+    path.dirname(pdfParseEntry),
+    "../../worker/esm/index.js",
+  );
+  const { getData } = await import(pathToFileURL(workerHelperPath).href);
+
+  PDFParse.setWorker(getData());
+  isPdfWorkerConfigured = true;
+}
 
 function getTrimmedLines(rawText: string) {
   return rawText
@@ -44,18 +66,7 @@ export async function parseDebtReportFromBuffer(
   buffer: Buffer,
 ): Promise<ParsedDebtReport> {
   const { PDFParse } = await import("pdf-parse");
-  PDFParse.setWorker(
-    pathToFileURL(
-      path.join(
-        process.cwd(),
-        "node_modules",
-        "pdfjs-dist",
-        "legacy",
-        "build",
-        "pdf.worker.mjs",
-      ),
-    ).href,
-  );
+  await configurePdfParseWorker(PDFParse);
   const parser = new PDFParse({ data: buffer });
   try {
     const parsed = await parser.getText();
