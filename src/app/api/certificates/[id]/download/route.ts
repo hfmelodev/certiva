@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sanitizeFilename } from "@/lib/utils";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -14,15 +15,19 @@ export async function GET(
   });
 
   if (!certificate) {
-    return NextResponse.json({ error: "Arquivo original nao encontrado." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Certidao nao encontrada." },
+      { status: 404 },
+    );
   }
 
-  const buffer = await readFile(certificate.storedSourcePath);
+  const buffer = await readFile(certificate.storedCertificatePath);
+  const fileName = `${sanitizeFilename(certificate.debtorName)}-certidao.pdf`;
 
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${certificate.originalFilename}"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
     },
   });
 }

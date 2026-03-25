@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { parseBrazilianCurrencyToCents, parseBrazilianDate } from "@/lib/utils";
 import type { ParsedDebtEntry, ParsedDebtReport } from "@/lib/types";
+import { parseBrazilianCurrencyToCents, parseBrazilianDate } from "@/lib/utils";
 
 function getTrimmedLines(rawText: string) {
   return rawText
@@ -40,18 +40,29 @@ function parseDebtEntries(lines: string[]): ParsedDebtEntry[] {
   return entries;
 }
 
-export async function parseDebtReportFromBuffer(buffer: Buffer): Promise<ParsedDebtReport> {
+export async function parseDebtReportFromBuffer(
+  buffer: Buffer,
+): Promise<ParsedDebtReport> {
   const { PDFParse } = await import("pdf-parse");
   PDFParse.setWorker(
     pathToFileURL(
-      path.join(process.cwd(), "node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs"),
+      path.join(
+        process.cwd(),
+        "node_modules",
+        "pdfjs-dist",
+        "legacy",
+        "build",
+        "pdf.worker.mjs",
+      ),
     ).href,
   );
   const parser = new PDFParse({ data: buffer });
   try {
     const parsed = await parser.getText();
     const rawText = parsed.text;
-    const normalizedText = rawText.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
+    const normalizedText = rawText
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n+/g, "\n");
     const lines = getTrimmedLines(normalizedText);
 
     let registration = "";
@@ -69,7 +80,9 @@ export async function parseDebtReportFromBuffer(buffer: Buffer): Promise<ParsedD
     }
 
     if (!registration || !debtorName) {
-      const fallbackMatch = normalizedText.match(/Registro\s+Nome Cliente\s+(\d+)\s+(.+?)\s+Ano\.Cob\./s);
+      const fallbackMatch = normalizedText.match(
+        /Registro\s+Nome Cliente\s+(\d+)\s+(.+?)\s+Ano\.Cob\./s,
+      );
 
       if (fallbackMatch) {
         registration = fallbackMatch[1];
@@ -78,26 +91,42 @@ export async function parseDebtReportFromBuffer(buffer: Buffer): Promise<ParsedD
     }
 
     if (!registration || !debtorName) {
-      throw new Error("Nao foi possivel identificar o registro e o nome do devedor no PDF importado.");
+      throw new Error(
+        "Nao foi possivel identificar o registro e o nome do devedor no PDF importado.",
+      );
     }
 
     const refMatch = normalizedText.match(/Dt\.Ref:\s*(\d{2}\/\d{2}\/\d{4})/);
-    const issueMatch = normalizedText.match(/Emiss[aã]o:\s*(\d{2}\/\d{2}\/\d{4})/);
-    const currencyMatches = [...normalizedText.matchAll(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g)].map(
-      (match) => match[0],
+    const issueMatch = normalizedText.match(
+      /Emiss[aã]o:\s*(\d{2}\/\d{2}\/\d{4})/,
     );
+    const currencyMatches = [
+      ...normalizedText.matchAll(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g),
+    ].map((match) => match[0]);
 
     if (!refMatch || !issueMatch || currencyMatches.length === 0) {
-      throw new Error("Nao foi possivel extrair os dados financeiros e de referencia do PDF importado.");
+      throw new Error(
+        "Nao foi possivel extrair os dados financeiros e de referencia do PDF importado.",
+      );
     }
 
     const debtEntries = parseDebtEntries(lines);
 
     if (debtEntries.length === 0) {
-      throw new Error("Nao foi possivel extrair os debitos detalhados do PDF importado.");
+      throw new Error(
+        "Nao foi possivel extrair os debitos detalhados do PDF importado.",
+      );
     }
 
-    const totalDebtCents = parseBrazilianCurrencyToCents(currencyMatches.at(-1)!);
+    const totalDebtMatch = currencyMatches.at(-1);
+
+    if (!totalDebtMatch) {
+      throw new Error(
+        "Nao foi possivel extrair o valor total do PDF importado.",
+      );
+    }
+
+    const totalDebtCents = parseBrazilianCurrencyToCents(totalDebtMatch);
 
     return {
       debtorName,

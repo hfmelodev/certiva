@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { NextResponse } from "next/server";
 import { generateCertificatePdf } from "@/lib/certificate-generator";
-import { prisma } from "@/lib/prisma";
 import { parseDebtReportFromBuffer } from "@/lib/pdf-parser";
-import { certificatesDir, ensureStorageDirs, saveBuffer, uploadsDir } from "@/lib/storage";
+import { prisma } from "@/lib/prisma";
+import {
+  certificatesDir,
+  ensureStorageDirs,
+  saveBuffer,
+  uploadsDir,
+} from "@/lib/storage";
 import { formatCurrencyFromCents, sanitizeFilename } from "@/lib/utils";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -56,11 +61,17 @@ export async function POST(request: Request) {
   const file = formData.get("file");
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Envie um arquivo PDF valido." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Envie um arquivo PDF valido." },
+      { status: 400 },
+    );
   }
 
   if (file.type !== "application/pdf") {
-    return NextResponse.json({ error: "O arquivo enviado deve ser um PDF." }, { status: 400 });
+    return NextResponse.json(
+      { error: "O arquivo enviado deve ser um PDF." },
+      { status: 400 },
+    );
   }
 
   const arrayBuffer = await file.arrayBuffer();
@@ -69,10 +80,14 @@ export async function POST(request: Request) {
   try {
     const report = await parseDebtReportFromBuffer(sourceBuffer);
     const slug = sanitizeFilename(report.debtorName) || "certidao";
-    const originalName = sanitizeFilename(file.name.replace(/\.pdf$/i, "")) || "arquivo";
+    const originalName =
+      sanitizeFilename(file.name.replace(/\.pdf$/i, "")) || "arquivo";
     const stamp = Date.now();
 
-    const storedSourcePath = path.join(uploadsDir, `${originalName}-${stamp}-${randomUUID()}.pdf`);
+    const storedSourcePath = path.join(
+      uploadsDir,
+      `${originalName}-${stamp}-${randomUUID()}.pdf`,
+    );
     const storedCertificatePath = path.join(
       certificatesDir,
       `${slug}-${stamp}-${randomUUID()}.pdf`,

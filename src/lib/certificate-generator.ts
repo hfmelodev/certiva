@@ -1,8 +1,14 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { PDFDocument, PDFPage, PDFFont, StandardFonts, rgb } from "pdf-lib";
 import type { ParsedDebtReport } from "@/lib/types";
 import { formatBrazilianDate, formatCurrencyFromCents } from "@/lib/utils";
+import {
+  PDFDocument,
+  type PDFFont,
+  type PDFPage,
+  StandardFonts,
+  rgb,
+} from "pdf-lib";
 
 const logoPath = path.join(process.cwd(), "oabma.jpeg");
 
@@ -24,7 +30,17 @@ function drawWrappedText(params: {
   size: number;
   color?: ReturnType<typeof rgb>;
 }) {
-  const { page, text, x, y, maxWidth, lineHeight, font, size, color = rgb(0.12, 0.12, 0.12) } = params;
+  const {
+    page,
+    text,
+    x,
+    y,
+    maxWidth,
+    lineHeight,
+    font,
+    size,
+    color = rgb(0.12, 0.12, 0.12),
+  } = params;
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let currentLine = "";
@@ -46,7 +62,7 @@ function drawWrappedText(params: {
     lines.push(currentLine);
   }
 
-  lines.forEach((line, index) => {
+  for (const [index, line] of lines.entries()) {
     page.drawText(line, {
       x,
       y: y - index * lineHeight,
@@ -54,7 +70,7 @@ function drawWrappedText(params: {
       font,
       color,
     });
-  });
+  }
 }
 
 export async function generateCertificatePdf(report: ParsedDebtReport) {
@@ -114,7 +130,9 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
     });
 
     currentPage.drawText(
-      continuation ? "Continuacao dos debitos detalhados" : `Emitida em ${formatBrazilianDate(new Date())}`,
+      continuation
+        ? "Continuacao dos debitos detalhados"
+        : `Emitida em ${formatBrazilianDate(new Date())}`,
       {
         x: CONTENT_LEFT,
         y: continuation ? 583 : 560,
@@ -180,7 +198,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
     `Data de emissao do relatorio importado: ${formatBrazilianDate(report.issueDate)}`,
   ];
 
-  details.forEach((detail, index) => {
+  for (const [index, detail] of details.entries()) {
     page.drawText(detail, {
       x: CONTENT_LEFT,
       y: 340 - index * 24,
@@ -188,7 +206,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
       font: fontRegular,
       color: rgb(0.18, 0.2, 0.24),
     });
-  });
+  }
 
   currentY = 235;
   ensureSpace(80);
@@ -224,7 +242,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
       color: rgb(0.93, 0.94, 0.96),
     });
 
-    columns.forEach((column) => {
+    for (const column of columns) {
       page.drawText(column.label, {
         x: column.x,
         y: currentY - 8,
@@ -232,14 +250,14 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
         font: fontBold,
         color: rgb(0.18, 0.2, 0.24),
       });
-    });
+    }
 
     currentY -= 28;
   };
 
   drawTableHeader();
 
-  report.debtEntries.forEach((entry) => {
+  for (const entry of report.debtEntries) {
     ensureSpace(24);
 
     const values = [
@@ -255,7 +273,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
       formatCurrencyFromCents(entry.updatedValueCents),
     ];
 
-    values.forEach((value, index) => {
+    for (const [index, value] of values.entries()) {
       page.drawText(value, {
         x: columns[index].x,
         y: currentY,
@@ -263,7 +281,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
         font: fontRegular,
         color: rgb(0.18, 0.2, 0.24),
       });
-    });
+    }
 
     page.drawLine({
       start: { x: CONTENT_LEFT, y: currentY - 5 },
@@ -273,7 +291,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
     });
 
     currentY -= 20;
-  });
+  }
 
   ensureSpace(90);
   currentY -= 8;
@@ -311,8 +329,7 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
     lineHeight: 18,
     font: fontRegular,
     size: 10,
-    text:
-      "A relacao acima reproduz todos os anos e todos os debitos identificados no relatorio importado. A conferencia deve ser realizada em conjunto com o PDF original armazenado no sistema.",
+    text: "A relacao acima reproduz todos os anos e todos os debitos identificados no relatorio importado. A conferencia deve ser realizada em conjunto com o PDF original armazenado no sistema.",
   });
 
   page.drawText("________________________________________", {
@@ -331,9 +348,9 @@ export async function generateCertificatePdf(report: ParsedDebtReport) {
     color: rgb(0.2, 0.22, 0.26),
   });
 
-  pdfDoc.getPages().forEach((currentPage) => {
+  for (const currentPage of pdfDoc.getPages()) {
     drawFooter(currentPage);
-  });
+  }
 
   return Buffer.from(await pdfDoc.save());
 }

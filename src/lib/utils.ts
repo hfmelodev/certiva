@@ -1,3 +1,10 @@
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
 export function formatCurrencyFromCents(valueInCents: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -13,7 +20,7 @@ export function parseBrazilianCurrencyToCents(value: string) {
 export function sanitizeFilename(value: string) {
   return value
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\p{Diacritic}/gu, "")
     .replace(/[^a-zA-Z0-9.-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")

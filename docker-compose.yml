@@ -1,0 +1,20 @@
+services:
+  srv-certiva:
+    image: bitnami/postgresql:latest
+    container_name: srv-certiva
+    environment:
+      - POSTGRESQL_USERNAME=docker
+      - POSTGRESQL_PASSWORD=docker
+      - POSTGRESQL_DATABASE=srv-certiva-db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U docker" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/bitnami/postgresql
+
+volumes:
+  postgres-data:
