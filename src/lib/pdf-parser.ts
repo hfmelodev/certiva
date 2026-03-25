@@ -1,10 +1,8 @@
-import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ParsedDebtEntry, ParsedDebtReport } from "@/lib/types";
 import { parseBrazilianCurrencyToCents, parseBrazilianDate } from "@/lib/utils";
 
-const require = createRequire(import.meta.url);
 let isPdfWorkerConfigured = false;
 
 async function configurePdfParseWorker(PDFParse: {
@@ -14,10 +12,14 @@ async function configurePdfParseWorker(PDFParse: {
     return;
   }
 
-  const pdfParseEntry = require.resolve("pdf-parse");
-  const workerHelperPath = path.resolve(
-    path.dirname(pdfParseEntry),
-    "../../worker/esm/index.js",
+  const workerHelperPath = path.join(
+    process.cwd(),
+    "node_modules",
+    "pdf-parse",
+    "dist",
+    "worker",
+    "esm",
+    "index.js",
   );
   const { getData } = await import(pathToFileURL(workerHelperPath).href);
 
