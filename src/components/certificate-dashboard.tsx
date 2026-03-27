@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +32,9 @@ import {
   Download,
   FileUp,
   Search,
+  Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import {
   type DragEvent,
@@ -66,6 +78,9 @@ export function CertificateDashboard() {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [certificateToDelete, setCertificateToDelete] =
+    useState<CertificateListItem | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -108,11 +123,44 @@ export function CertificateDashboard() {
       return payload as { debtorName: string; totalDebtFormatted: string };
     },
     onSuccess: async (payload) => {
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
       setSuccessMessage(
         `Certidao gerada para ${payload.debtorName} com saldo total de ${payload.totalDebtFormatted}.`,
       );
+      setErrorMessage(null);
       reset();
       await queryClient.invalidateQueries({ queryKey: ["certificates"] });
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (certificateId: string) => {
+      const response = await fetch(`/api/certificates/${certificateId}`, {
+        method: "DELETE",
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          payload.error ?? "Nao foi possivel excluir a certidao.",
+        );
+      }
+
+      return payload as { id: string };
+    },
+    onSuccess: async () => {
+      setSuccessMessage("Certidao excluida com sucesso.");
+      setErrorMessage(null);
+      setCertificateToDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ["certificates"] });
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
     },
   });
 
@@ -133,6 +181,17 @@ export function CertificateDashboard() {
     }
   }, [currentPage, totalPages]);
 
+  function clearSelectedFile() {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+
+    reset();
+    clearErrors("file");
+    setSuccessMessage(null);
+    setErrorMessage(null);
+  }
+
   function handleFileDrop(event: DragEvent<HTMLButtonElement>) {
     event.preventDefault();
     setIsDraggingFile(false);
@@ -145,6 +204,7 @@ export function CertificateDashboard() {
 
     clearErrors("file");
     setSuccessMessage(null);
+    setErrorMessage(null);
     setValue("file", files, {
       shouldDirty: true,
       shouldTouch: true,
@@ -172,11 +232,6 @@ export function CertificateDashboard() {
               <CardTitle className="text-3xl leading-tight sm:text-4xl">
                 Emissão de Certidão de Débitos Atuais de Dívida Ativa
               </CardTitle>
-              <CardDescription className="max-w-2xl text-sm">
-                Interface redesenhada para reduzir ruído visual e centralizar a
-                operação: importação do relatório, geração do documento e
-                consulta do histórico no mesmo fluxo.
-              </CardDescription>
             </div>
           </CardHeader>
 
@@ -235,19 +290,14 @@ export function CertificateDashboard() {
               className="space-y-4"
               onSubmit={handleSubmit((values) => {
                 setSuccessMessage(null);
+                setErrorMessage(null);
                 mutation.mutate(values);
               })}
             >
               <div className="space-y-2">
-                <label
-                  className="text-sm font-semibold text-foreground"
-                  htmlFor="certificate-file"
-                >
-                  PDF do relatorio
-                </label>
                 <button
                   type="button"
-                  className={`group flex min-h-52 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed px-5 py-6 text-center transition ${
+                  className={`group flex min-h-52 mt-2 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed px-5 py-6 text-center transition ${
                     isDraggingFile
                       ? "border-primary bg-primary/6"
                       : "border-border/80 bg-secondary/35 hover:border-primary/30 hover:bg-secondary/55"
@@ -279,12 +329,24 @@ export function CertificateDashboard() {
                       ou clique para selecionar um arquivo do computador
                     </p>
                   </div>
-                  {selectedFile ? (
-                    <div className="rounded-md border border-primary/12 bg-white px-3 py-2 text-sm text-primary">
-                      {selectedFile.name} · {formatFileSize(selectedFile.size)}
-                    </div>
-                  ) : null}
                 </button>
+                {selectedFile ? (
+                  <div className="flex items-center justify-between gap-3 rounded-md border border-primary/12 bg-white px-3 py-2 text-sm text-primary">
+                    <span className="min-w-0 truncate">
+                      {selectedFile.name} · {formatFileSize(selectedFile.size)}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 px-2"
+                      onClick={clearSelectedFile}
+                    >
+                      <X className="size-4" />
+                      Remover
+                    </Button>
+                  </div>
+                ) : null}
                 <input
                   id="certificate-file"
                   type="file"
@@ -300,6 +362,7 @@ export function CertificateDashboard() {
                     fileField.onChange(event);
                     clearErrors("file");
                     setSuccessMessage(null);
+                    setErrorMessage(null);
                   }}
                 />
               </div>
@@ -311,7 +374,7 @@ export function CertificateDashboard() {
               ) : null}
               {mutation.isError ? (
                 <p className="rounded-md border border-accent/15 bg-accent/5 px-3 py-2 text-sm text-accent">
-                  {mutation.error.message}
+                  {errorMessage ?? mutation.error.message}
                 </p>
               ) : null}
               {successMessage ? (
@@ -323,7 +386,7 @@ export function CertificateDashboard() {
               <Button
                 className="w-full"
                 type="submit"
-                disabled={mutation.isPending}
+                disabled={mutation.isPending || !selectedFile}
               >
                 <UploadCloud className="size-4" />
                 {mutation.isPending ? "Gerando certidão..." : "Gerar certidão"}
@@ -407,6 +470,11 @@ export function CertificateDashboard() {
             </CardContent>
           ) : (
             <>
+              {deleteMutation.isError ? (
+                <div className="border-b border-accent/15 bg-accent/5 px-5 py-3 text-sm text-accent">
+                  {errorMessage ?? deleteMutation.error.message}
+                </div>
+              ) : null}
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="bg-secondary/55 text-left text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -459,6 +527,22 @@ export function CertificateDashboard() {
                                 Original
                               </a>
                             </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setSuccessMessage(null);
+                                setErrorMessage(null);
+                                setCertificateToDelete(certificate);
+                              }}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="size-4" />
+                              {deleteMutation.isPending &&
+                              deleteMutation.variables === certificate.id
+                                ? "Excluindo..."
+                                : "Excluir"}
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -471,7 +555,7 @@ export function CertificateDashboard() {
                 <p className="text-sm text-muted-foreground">
                   Página {currentPage} de {totalPages}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center mt-3 gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -500,6 +584,44 @@ export function CertificateDashboard() {
           )}
         </Card>
       </section>
+      <AlertDialog
+        open={certificateToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setCertificateToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir certidão</AlertDialogTitle>
+            <AlertDialogDescription>
+              {certificateToDelete
+                ? `Essa ação remove a certidão de ${certificateToDelete.debtorName}, o PDF gerado e o arquivo original anexado.`
+                : "Essa ação remove a certidão e os arquivos relacionados."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="sm:min-w-28">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="sm:min-w-28"
+              onClick={() => {
+                if (!certificateToDelete) {
+                  return;
+                }
+
+                setSuccessMessage(null);
+                setErrorMessage(null);
+                deleteMutation.mutate(certificateToDelete.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

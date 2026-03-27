@@ -60,6 +60,10 @@ function parseDebtEntries(lines: string[]): ParsedDebtEntry[] {
       issueDate: parseBrazilianDate(parts[6]),
       originalValueCents: parseBrazilianCurrencyToCents(parts[7]),
       dueDate: parseBrazilianDate(parts[10]),
+      monetaryCorrectionCents: parseBrazilianCurrencyToCents(parts[11]),
+      penaltyCents: parseBrazilianCurrencyToCents(parts[13]),
+      interestCents: parseBrazilianCurrencyToCents(parts[14]),
+      subtotalCents: parseBrazilianCurrencyToCents(parts[15]),
       updatedValueCents: parseBrazilianCurrencyToCents(parts[15]),
     });
   }

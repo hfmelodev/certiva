@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export const projectRoot = process.cwd();
@@ -16,4 +16,8 @@ export async function ensureStorageDirs() {
 export async function saveBuffer(filePath: string, buffer: Buffer) {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, buffer);
+}
+
+export async function deleteFileIfExists(filePath: string) {
+  await rm(filePath, { force: true });
 }

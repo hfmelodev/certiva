@@ -8,6 +8,10 @@ export type ParsedDebtEntry = {
   issueDate: Date;
   dueDate: Date;
   originalValueCents: number;
+  monetaryCorrectionCents: number;
+  penaltyCents: number;
+  interestCents: number;
+  subtotalCents: number;
   updatedValueCents: number;
 };
 
